@@ -12,12 +12,10 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Accelerometer } from 'expo-sensors';
-
-// Importación única de componente externo
-import ExploracionCamara from './ExploracionCamara';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 /* =========================================================
-   DATOS BASE DEL LABORATORIO
+   CONFIGURACIÓN Y DATOS BASE
 ========================================================= */
 
 const TOTAL_PRODUCTOS = 120;
@@ -73,19 +71,7 @@ export default function App() {
       )}
 
       {pestana === 'camara' && (
-        <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.contenido}>
-            <EncabezadoAdaptativo />
-            <Navegacion pestana={pestana} setPestana={setPestana} />
-            <View style={styles.tituloSeccion}>
-              <Text style={styles.tituloSeccionTexto}>Exploración de Cámara</Text>
-              <Text style={styles.descripcionSeccion}>
-                Módulo externo que gestiona permisos y visor en vivo.
-              </Text>
-            </View>
-            <ExploracionCamara />
-          </ScrollView>
-        </View>
+        <PantallaCamara pestana={pestana} setPestana={setPestana} />
       )}
     </View>
   );
@@ -191,7 +177,87 @@ function BotonTab({ activo, icono, titulo, subtitulo, onPress, movil }) {
 }
 
 /* =========================================================
-   PANTALLA SENSORES (DENTRO DE APP.JS)
+   PANTALLA CÁMARA
+========================================================= */
+
+function PantallaCamara({ pestana, setPestana }) {
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState('back');
+
+  const alternarCamara = () => {
+    setFacing((actual) => (actual === 'back' ? 'front' : 'back'));
+  };
+
+  return (
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.contenido}>
+        <EncabezadoAdaptativo />
+        <Navegacion pestana={pestana} setPestana={setPestana} />
+
+        <View style={styles.tituloSeccion}>
+          <Text style={styles.tituloSeccionTexto}>Exploración de Cámara</Text>
+          <Text style={styles.descripcionSeccion}>
+            Verificación de permisos y visor en vivo con CameraView.
+          </Text>
+        </View>
+
+        {!permission && (
+          <View style={styles.alertaOriginal}>
+            <Text style={styles.alertaIcono}>⏳</Text>
+            <View style={styles.alertaTexto}>
+              <Text style={styles.alertaTitulo}>Comprobando permisos</Text>
+              <Text style={styles.alertaDescripcion}>
+                Consultando el estado de autorización del hardware...
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {permission && !permission.granted && (
+          <View style={styles.bloquePermisoDenegado}>
+            <Text style={styles.permisoIcono}>🔒</Text>
+            <Text style={styles.permisoTitulo}>Permiso de Cámara Denegado</Text>
+            <Text style={styles.permisoDescripcion}>
+              La aplicación requiere autorización para mostrar el sensor óptico.
+              Las demás pestañas siguen completamente funcionales.
+            </Text>
+            <Pressable style={styles.botonPermiso} onPress={requestPermission}>
+              <Text style={styles.botonPermisoTexto}>Conceder Permiso</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {permission && permission.granted && (
+          <View style={styles.camaraContenedor}>
+            <View style={styles.visorMarco}>
+              <CameraView style={styles.camaraVisor} facing={facing} />
+            </View>
+
+            <View style={styles.camaraControles}>
+              <View>
+                <Text style={styles.infoCamaraTitulo}>Lente actual</Text>
+                <Text style={styles.infoCamaraValor}>
+                  {facing === 'back' ? 'Trasera (Principal)' : 'Frontal (Selfie)'}
+                </Text>
+              </View>
+
+              <Pressable style={styles.btnRotarCamara} onPress={alternarCamara}>
+                <Text style={styles.btnRotarTexto}>🔄 Cambiar Lente</Text>
+              </Pressable>
+            </View>
+
+            <Text style={styles.notaCamara}>
+              Vista previa activa. No bloquea el sistema si navegas a otras pestañas.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+/* =========================================================
+   PANTALLA SENSORES
 ========================================================= */
 
 function PantallaSensores({ pestana, setPestana }) {
@@ -551,7 +617,7 @@ function PantallaAdaptativa({ pestana, setPestana }) {
 }
 
 /* =========================================================
-   TARJETAS Y AUXILIARES
+   COMPONENTES AUXILIARES
 ========================================================= */
 
 function Metricas({ montados, porcentaje }) {
@@ -642,8 +708,14 @@ function TarjetaAdaptativa({ producto, columnas }) {
 ========================================================= */
 
 const styles = StyleSheet.create({
-  app: { flex: 1, backgroundColor: '#070B14' },
-  container: { flex: 1, backgroundColor: '#070B14' },
+  app: {
+    flex: 1,
+    backgroundColor: '#070B14',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#070B14',
+  },
   contenido: {
     paddingTop: Platform.OS === 'android' ? 35 : 20,
     paddingHorizontal: 14,
@@ -657,8 +729,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingBottom: 15,
   },
-  headerMovil: { alignItems: 'flex-start' },
-  headerTexto: { flex: 1, paddingRight: 10 },
+  headerMovil: {
+    alignItems: 'flex-start',
+  },
+  headerTexto: {
+    flex: 1,
+    paddingRight: 10,
+  },
   etiqueta: {
     color: '#00E5FF',
     fontSize: 10,
@@ -666,9 +743,19 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 7,
   },
-  titulo: { color: '#FFFFFF', fontSize: 24, fontWeight: '900' },
-  tituloMovil: { fontSize: 20 },
-  subtitulo: { color: '#7D8799', fontSize: 12, marginTop: 5 },
+  titulo: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  tituloMovil: {
+    fontSize: 20,
+  },
+  subtitulo: {
+    color: '#7D8799',
+    fontSize: 12,
+    marginTop: 5,
+  },
   contador: {
     width: 58,
     height: 58,
@@ -678,9 +765,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  contadorMovil: { width: 50, height: 50 },
-  contadorNumero: { color: '#00E5FF', fontSize: 16, fontWeight: '900' },
-  contadorTexto: { color: '#7D8799', fontSize: 7, fontWeight: '700' },
+  contadorMovil: {
+    width: 50,
+    height: 50,
+  },
+  contadorNumero: {
+    color: '#00E5FF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  contadorTexto: {
+    color: '#7D8799',
+    fontSize: 7,
+    fontWeight: '700',
+  },
   tabs: {
     flexDirection: 'row',
     backgroundColor: '#0C111D',
@@ -690,7 +788,9 @@ const styles = StyleSheet.create({
     padding: 5,
     marginBottom: 10,
   },
-  tabsMovil: { flexDirection: 'column' },
+  tabsMovil: {
+    flexDirection: 'column',
+  },
   tab: {
     flex: 1,
     minHeight: 50,
@@ -700,14 +800,41 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     margin: 2,
   },
-  tabMovil: { width: '100%', minHeight: 48 },
-  tabActivo: { backgroundColor: '#18253C' },
-  tabIcono: { fontSize: 16, marginRight: 6 },
-  tabTitulo: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  tabSubtitulo: { color: '#63718A', fontSize: 8, marginTop: 1 },
-  tituloSeccion: { marginTop: 12, marginBottom: 10 },
-  tituloSeccionTexto: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  descripcionSeccion: { color: '#617089', fontSize: 10, marginTop: 3 },
+  tabMovil: {
+    width: '100%',
+    minHeight: 48,
+  },
+  tabActivo: {
+    backgroundColor: '#18253C',
+  },
+  tabIcono: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  tabTitulo: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tabSubtitulo: {
+    color: '#63718A',
+    fontSize: 8,
+    marginTop: 1,
+  },
+  tituloSeccion: {
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  tituloSeccionTexto: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  descripcionSeccion: {
+    color: '#617089',
+    fontSize: 10,
+    marginTop: 3,
+  },
   alertaOriginal: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -718,12 +845,31 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  alertaIcono: { fontSize: 22, marginRight: 10 },
-  alertaTexto: { flex: 1 },
-  alertaTitulo: { color: '#FFD36A', fontSize: 12, fontWeight: '800' },
-  alertaDescripcion: { color: '#9B8964', fontSize: 9, marginTop: 3 },
-  metricas: { flexDirection: 'row', gap: 10, marginTop: 0 },
-  metricasMovil: { flexDirection: 'column' },
+  alertaIcono: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  alertaTexto: {
+    flex: 1,
+  },
+  alertaTitulo: {
+    color: '#FFD36A',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  alertaDescripcion: {
+    color: '#9B8964',
+    fontSize: 9,
+    marginTop: 3,
+  },
+  metricas: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 0,
+  },
+  metricasMovil: {
+    flexDirection: 'column',
+  },
   metrica: {
     flex: 1,
     minHeight: 120,
@@ -734,10 +880,25 @@ const styles = StyleSheet.create({
     padding: 14,
     position: 'relative',
   },
-  metricaIcono: { fontSize: 20, marginBottom: 8 },
-  metricaTitulo: { color: '#AAB4C5', fontSize: 10 },
-  metricaNumero: { color: '#FFFFFF', fontSize: 25, fontWeight: '900', marginTop: 3 },
-  metricaDescripcion: { color: '#617089', fontSize: 9, marginTop: 2 },
+  metricaIcono: {
+    fontSize: 20,
+    marginBottom: 8,
+  },
+  metricaTitulo: {
+    color: '#AAB4C5',
+    fontSize: 10,
+  },
+  metricaNumero: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  metricaDescripcion: {
+    color: '#617089',
+    fontSize: 9,
+    marginTop: 2,
+  },
   badge: {
     position: 'absolute',
     top: 16,
@@ -747,7 +908,11 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 4,
   },
-  badgeTexto: { color: '#FFFFFF', fontSize: 7, fontWeight: '900' },
+  badgeTexto: {
+    color: '#FFFFFF',
+    fontSize: 7,
+    fontWeight: '900',
+  },
   recursos: {
     backgroundColor: '#0C111D',
     borderWidth: 1,
@@ -756,12 +921,38 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 10,
   },
-  recursosHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  recursosTitulo: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  recursosPorcentaje: { color: '#00E5FF', fontSize: 12, fontWeight: '900' },
-  barra: { height: 7, backgroundColor: '#18202D', borderRadius: 10, overflow: 'hidden', marginTop: 9 },
-  barraProgreso: { height: '100%', backgroundColor: '#00D9A6', borderRadius: 10 },
-  recursosDescripcion: { color: '#62718A', fontSize: 9, marginTop: 9 },
+  recursosHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recursosTitulo: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  recursosPorcentaje: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  barra: {
+    height: 7,
+    backgroundColor: '#18202D',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginTop: 9,
+  },
+  barraProgreso: {
+    height: '100%',
+    backgroundColor: '#00D9A6',
+    borderRadius: 10,
+  },
+  recursosDescripcion: {
+    color: '#62718A',
+    fontSize: 9,
+    marginTop: 9,
+  },
   diseno: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -769,10 +960,23 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 10,
   },
-  disenoMovil: { alignItems: 'flex-start' },
-  disenoTexto: { flex: 1, paddingRight: 10 },
-  disenoTitulo: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
-  disenoDescripcion: { color: '#617089', fontSize: 9, marginTop: 4 },
+  disenoMovil: {
+    alignItems: 'flex-start',
+  },
+  disenoTexto: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  disenoTitulo: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  disenoDescripcion: {
+    color: '#617089',
+    fontSize: 9,
+    marginTop: 4,
+  },
   resolucion: {
     backgroundColor: '#18253C',
     borderRadius: 9,
@@ -780,8 +984,16 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     alignItems: 'center',
   },
-  resolucionNumero: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  resolucionTexto: { color: '#7B8BA5', fontSize: 8, marginTop: 2 },
+  resolucionNumero: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  resolucionTexto: {
+    color: '#7B8BA5',
+    fontSize: 8,
+    marginTop: 2,
+  },
   producto: {
     flexDirection: 'row',
     backgroundColor: '#0C111D',
@@ -791,13 +1003,41 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 10,
   },
-  productoImagen: { width: 90, height: 90, borderRadius: 10, backgroundColor: '#18202D' },
-  productoInfo: { flex: 1, paddingLeft: 12, justifyContent: 'center' },
-  productoNombre: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  productoDescripcion: { color: '#6F7D94', fontSize: 9, marginTop: 4 },
-  productoCategoria: { color: '#00D9FF', fontSize: 9, marginTop: 5 },
-  productoPrecio: { color: '#00D9A6', fontSize: 13, fontWeight: '900', marginTop: 5 },
-  fila: { gap: 10 },
+  productoImagen: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    backgroundColor: '#18202D',
+  },
+  productoInfo: {
+    flex: 1,
+    paddingLeft: 12,
+    justifyContent: 'center',
+  },
+  productoNombre: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  productoDescripcion: {
+    color: '#6F7D94',
+    fontSize: 9,
+    marginTop: 4,
+  },
+  productoCategoria: {
+    color: '#00D9FF',
+    fontSize: 9,
+    marginTop: 5,
+  },
+  productoPrecio: {
+    color: '#00D9A6',
+    fontSize: 13,
+    fontWeight: '900',
+    marginTop: 5,
+  },
+  fila: {
+    gap: 10,
+  },
   tarjetaAdaptativa: {
     backgroundColor: '#0C111D',
     borderWidth: 1,
@@ -806,17 +1046,47 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 10,
   },
-  tarjetaUnaColumna: { flexDirection: 'row', width: '100%' },
-  tarjetaDosColumnas: { flex: 1, minWidth: 0 },
-  tarjetaTresColumnas: { flex: 1, minWidth: 0 },
-  imagenAdaptativa: { width: '100%', height: 150, backgroundColor: '#18202D' },
-  imagenUnaColumna: { width: 105, height: 105 },
-  adaptativaInfo: { padding: 10, flex: 1 },
-  adaptativaNombre: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  adaptativaCategoria: { color: '#00D9FF', fontSize: 9, marginTop: 4 },
-  adaptativaPrecio: { color: '#00D9A6', fontSize: 12, fontWeight: '900', marginTop: 6 },
-
-  /* --- Sensores --- */
+  tarjetaUnaColumna: {
+    flexDirection: 'row',
+    width: '100%',
+  },
+  tarjetaDosColumnas: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tarjetaTresColumnas: {
+    flex: 1,
+    minWidth: 0,
+  },
+  imagenAdaptativa: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#18202D',
+  },
+  imagenUnaColumna: {
+    width: 105,
+    height: 105,
+  },
+  adaptativaInfo: {
+    padding: 10,
+    flex: 1,
+  },
+  adaptativaNombre: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  adaptativaCategoria: {
+    color: '#00D9FF',
+    fontSize: 9,
+    marginTop: 4,
+  },
+  adaptativaPrecio: {
+    color: '#00D9A6',
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 6,
+  },
   bannerSensor: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -825,12 +1095,31 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
   },
-  bannerSimulado: { backgroundColor: '#1F1E29', borderColor: '#484469' },
-  bannerReal: { backgroundColor: '#0D2727', borderColor: '#008F7A' },
-  bannerIcono: { fontSize: 22, marginRight: 10 },
-  bannerTextos: { flex: 1 },
-  bannerTitulo: { color: '#00E5FF', fontSize: 12, fontWeight: '800' },
-  bannerSubtitulo: { color: '#8898AA', fontSize: 9, marginTop: 3 },
+  bannerSimulado: {
+    backgroundColor: '#1F1E29',
+    borderColor: '#484469',
+  },
+  bannerReal: {
+    backgroundColor: '#0D2727',
+    borderColor: '#008F7A',
+  },
+  bannerIcono: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  bannerTextos: {
+    flex: 1,
+  },
+  bannerTitulo: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  bannerSubtitulo: {
+    color: '#8898AA',
+    fontSize: 9,
+    marginTop: 3,
+  },
   tarjetaSensor: {
     backgroundColor: '#0C111D',
     borderWidth: 1,
@@ -839,8 +1128,19 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  sensorSubcabecera: { color: '#7D8799', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
-  sensorEstadoGrande: { color: '#FFFFFF', fontSize: 20, fontWeight: '900', marginTop: 4, marginBottom: 14 },
+  sensorSubcabecera: {
+    color: '#7D8799',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  sensorEstadoGrande: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 4,
+    marginBottom: 14,
+  },
   pistaNivel: {
     height: 48,
     backgroundColor: '#121A28',
@@ -851,7 +1151,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#202938',
   },
-  pistaContenedor: { width: '100%', height: '100%', justifyContent: 'center' },
+  pistaContenedor: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+  },
   burbujaNivel: {
     width: 34,
     height: 34,
@@ -860,8 +1164,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  burbujaTexto: { color: '#070B14', fontWeight: '900', fontSize: 12 },
-  lecturasEjes: { flexDirection: 'row', gap: 8 },
+  burbujaTexto: {
+    color: '#070B14',
+    fontWeight: '900',
+    fontSize: 12,
+  },
+  lecturasEjes: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   ejeCaja: {
     flex: 1,
     backgroundColor: '#18253C',
@@ -869,8 +1180,17 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
   },
-  ejeEtiqueta: { color: '#7D8799', fontSize: 10, fontWeight: '700' },
-  ejeValor: { color: '#00D9A6', fontSize: 16, fontWeight: '900', marginTop: 3 },
+  ejeEtiqueta: {
+    color: '#7D8799',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  ejeValor: {
+    color: '#00D9A6',
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 3,
+  },
   bloqueMejora: {
     backgroundColor: '#0C111D',
     borderWidth: 1,
@@ -882,11 +1202,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  mejoraTitulo: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  botonAccion: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
-  botonPausar: { backgroundColor: '#B83232' },
-  botonReanudar: { backgroundColor: '#008F7A' },
-  botonAccionTexto: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  mejoraTitulo: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  botonAccion: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  botonPausar: {
+    backgroundColor: '#B83232',
+  },
+  botonReanudar: {
+    backgroundColor: '#008F7A',
+  },
+  botonAccionTexto: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   panelSimulacion: {
     backgroundColor: '#0C111D',
     borderWidth: 1,
@@ -895,9 +1231,21 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 20,
   },
-  simulacionTitulo: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  simulacionDescripcion: { color: '#687790', fontSize: 10, marginTop: 2, marginBottom: 12 },
-  botonesFila: { flexDirection: 'row', gap: 8 },
+  simulacionTitulo: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  simulacionDescripcion: {
+    color: '#687790',
+    fontSize: 10,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  botonesFila: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   btnSimular: {
     flex: 1,
     backgroundColor: '#18253C',
@@ -907,7 +1255,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#202938',
   },
-  btnSimularTexto: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  btnSimularTexto: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   btnAlternarModo: {
     marginTop: 12,
     paddingVertical: 10,
@@ -915,5 +1267,103 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  btnAlternarTexto: { color: '#00E5FF', fontSize: 11, fontWeight: '700' },
+  btnAlternarTexto: {
+    color: '#00E5FF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bloquePermisoDenegado: {
+    backgroundColor: '#1E1616',
+    borderWidth: 1,
+    borderColor: '#4A2A2A',
+    borderRadius: 14,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  permisoIcono: {
+    fontSize: 32,
+    marginBottom: 10,
+  },
+  permisoTitulo: {
+    color: '#FF7373',
+    fontSize: 15,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  permisoDescripcion: {
+    color: '#A89292',
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  botonPermiso: {
+    backgroundColor: '#00D9A6',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  botonPermisoTexto: {
+    color: '#070B14',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  camaraContenedor: {
+    backgroundColor: '#0C111D',
+    borderWidth: 1,
+    borderColor: '#202938',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+  },
+  visorMarco: {
+    width: '100%',
+    height: 320,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000000',
+    borderWidth: 1,
+    borderColor: '#202938',
+  },
+  camaraVisor: {
+    flex: 1,
+  },
+  camaraControles: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingHorizontal: 4,
+  },
+  infoCamaraTitulo: {
+    color: '#687790',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  infoCamaraValor: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  btnRotarCamara: {
+    backgroundColor: '#18253C',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2D3B55',
+  },
+  btnRotarTexto: {
+    color: '#00E5FF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  notaCamara: {
+    color: '#62718A',
+    fontSize: 9,
+    marginTop: 12,
+    textAlign: 'center',
+  },
 });
